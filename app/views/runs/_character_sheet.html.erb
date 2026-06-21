@@ -1,3 +1,8 @@
+<%
+  events = local_assigns[:events] || character.run.life_events.order(age: :asc)
+  events_count = local_assigns[:events_count] || (events.respond_to?(:count) ? events.count : events.size)
+%>
+
 <div class="profile-card">
   <div class="profile-header">
     <div class="profile-avatar">
@@ -14,6 +19,11 @@
     <span class="net-worth-label">NET WORTH</span>
     <span class="net-worth-value">$<%= number_to_human(character.cash, precision: 3, format: '%n%u', units: { thousand: 'K', million: 'M' }) %></span>
   </div>
+</div>
+
+<!-- Tablet-only stats grid -->
+<div class="tablet-only-stats">
+  <%= render partial: "life_log", locals: { character: character, events_count: events_count } %>
 </div>
 
 <h3 class="section-title">Attributes</h3>
@@ -120,3 +130,11 @@
     <% end %>
   </div>
 <% end %>
+
+<!-- Tablet-only timeline -->
+<div class="tablet-only-timeline">
+  <h3 class="section-title">Timeline</h3>
+  <div class="timeline-list" id="tablet_timeline_list">
+    <%= render partial: "timeline", locals: { events: events } %>
+  </div>
+</div>

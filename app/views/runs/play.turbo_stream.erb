@@ -2,7 +2,7 @@
 
 <%= turbo_stream.append "life_feed", partial: "event_card", locals: { event: @active_event, active: true } %>
 
-<%= turbo_stream.update "character_sheet", partial: "character_sheet", locals: { character: @character } %>
+<%= turbo_stream.update "character_sheet", partial: "character_sheet", locals: { character: @character, events: @events } %>
 
 <%= turbo_stream.update "life_log", partial: "life_log", locals: { character: @character, events_count: @events.count } %>
 

@@ -9,6 +9,16 @@
       </div>
       <div>YEAR <%= Date.current.year + (@character.age - 18) %></div>
       <div>SLOT_01 - <%= @character.full_name.upcase %></div>
+      
+      <!-- Actions Dropdown Menu -->
+      <div class="header-dropdown-wrapper">
+        <button class="header-dropdown-btn" aria-label="Menu d'actions">
+          ⚙️
+        </button>
+        <div class="header-dropdown-menu">
+          <%= button_to "Recommencer la vie", run_path(@run), method: :delete, class: "dropdown-item reset-item", data: { confirm: "Êtes-vous sûr de vouloir supprimer cette vie ?" } %>
+        </div>
+      </div>
     </div>
   <% end %>
 </div>
@@ -54,11 +64,11 @@
   <% else %>
     <!-- LEFT SIDEBAR: PROFILE & STATS -->
     <div class="game-sidebar" id="character_sheet">
-      <%= render partial: "character_sheet", locals: { character: @character } %>
+      <%= render partial: "character_sheet", locals: { character: @character, events: @events } %>
     </div>
 
     <!-- MAIN COLUMN: STORY FEED -->
-    <div class="game-main">
+    <div class="game-main mobile-tab-active" id="life_feed_panel">
       <div class="life-feed-container" id="life_feed">
         <% @events.each do |event| %>
           <%= render partial: "event_card", locals: { event: event, active: (event == @active_event) } %>
@@ -82,8 +92,22 @@
           <%= render partial: "timeline", locals: { events: @events } %>
         </div>
       </div>
+    </div>
 
-      <%= button_to "Recommencer la vie", run_path(@run), method: :delete, class: "reset-btn", data: { confirm: "Êtes-vous sûr de vouloir supprimer cette vie ?" } %>
+    <!-- BOTTOM NAVIGATION BAR (Mobile only) -->
+    <div class="mobile-nav-bar">
+      <button class="nav-item" data-tab-name="hero">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Héros</span>
+      </button>
+      <button class="nav-item active" data-tab-name="story">
+        <span class="nav-icon">💬</span>
+        <span class="nav-label">Histoire</span>
+      </button>
+      <button class="nav-item" data-tab-name="journal">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Journal</span>
+      </button>
     </div>
   <% end %>
 </div>
