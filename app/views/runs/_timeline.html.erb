@@ -1,10 +1,18 @@
 <% events.reverse.each_with_index do |event, idx| %>
+  <%
+    timeline_title = event.title.presence || "Dialogue"
+    timeline_text =
+      event.resolution_narrative.presence ||
+      event.narrative.presence ||
+      event.player_custom_action.presence ||
+      "En attente de votre prochaine action"
+  %>
   <div class="timeline-item <%= idx == 0 ? 'active' : '' %>">
     <div class="timeline-dot"></div>
     <div class="timeline-content">
       <span class="timeline-age">AGE <%= event.age %></span>
-      <span class="timeline-text" title="<%= event.narrative %>">
-        <strong><%= event.title %></strong> - <%= event.narrative %>
+      <span class="timeline-text" title="<%= timeline_text %>">
+        <strong><%= timeline_title %></strong> - <%= timeline_text %>
       </span>
     </div>
   </div>

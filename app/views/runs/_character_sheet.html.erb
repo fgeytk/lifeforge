@@ -1,5 +1,5 @@
 <%
-  events = local_assigns[:events] || character.run.life_events.order(age: :asc)
+  events = local_assigns[:events] || character.run.life_events.order(id: :asc)
   events_count = local_assigns[:events_count] || (events.respond_to?(:count) ? events.count : events.size)
 %>
 

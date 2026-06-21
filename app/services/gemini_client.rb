@@ -52,7 +52,15 @@ class GeminiClient
       parts << "Player Action: #{e.player_custom_action || e.selected_choice_id}" if (e.player_custom_action || e.selected_choice_id).present?
       parts << "AI Resolution: #{e.resolution_narrative}" if e.resolution_narrative.present?
       parts.join(" | ")
-    end.join("\n")
+    end.reject(&:blank?).join("\n")
+
+    fallback_event = history.reverse.find { |e| e.resolution_narrative.present? || e.narrative.present? }
+    last_situation =
+      last_event.narrative.presence ||
+      last_event.resolution_narrative.presence ||
+      fallback_event&.resolution_narrative.presence ||
+      fallback_event&.narrative.presence ||
+      "Le joueur attend la prochaine situation."
 
     prompt = <<~PROMPT
       You are the Game Master of Lifeforge, a realistic life simulator.
@@ -73,7 +81,7 @@ class GeminiClient
       #{history_context}
 
       LAST SITUATION PRESENTED:
-      "#{last_event.narrative || last_event.resolution_narrative}"
+      "#{last_situation}"
 
       ACTION TAKEN BY PLAYER:
       "#{action_taken}"

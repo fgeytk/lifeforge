@@ -58,31 +58,31 @@ class GameEngine
       action_text = "Laisser le destin décider."
     end
 
-    # 3. Get history of recent events for LLM context (sorted chronologically by ID)
-    history = run.life_events.order(id: :asc).limit(5).to_a
+    # 3. Get recent resolved history for LLM context, excluding the active placeholder.
+    history = run.life_events.where.not(id: last_event.id).order(id: :desc).limit(5).to_a.reverse
 
-    # 4. Ask Gemini for resolution + next event
-    response = GeminiClient.resolve_turn(character, last_event, action_text, history)
+    # 4. Ask Gemini for the Game Master reply.
+    response = GeminiClient.resolve_turn(character, last_event, action_text, history) || {}
 
     # 5. Process resolution and update character stats
     reply = response["reply"] || "Vous continuez votre route."
     proposed = response["proposed_changes"] || {}
-    age_delta = (response["age_delta"] || 1).to_i
+    age_delta = sanitize_age_delta(response["age_delta"])
 
     # Update stats safely
-    character.cash += (proposed["cash_delta"] || 0)
-    character.health = sanitize_stat(character.health + (proposed["health"] || 0))
-    character.happiness = sanitize_stat(character.happiness + (proposed["happiness"] || 0))
-    character.intelligence = sanitize_stat(character.intelligence + (proposed["intelligence"] || 0))
-    character.fitness = sanitize_stat(character.fitness + (proposed["fitness"] || 0))
-    character.looks = sanitize_stat(character.looks + (proposed["looks"] || 0))
-    character.charisma = sanitize_stat(character.charisma + (proposed["charisma"] || 0))
+    character.cash += stat_delta(proposed, "cash_delta")
+    character.health = sanitize_stat(character.health + stat_delta(proposed, "health"))
+    character.happiness = sanitize_stat(character.happiness + stat_delta(proposed, "happiness"))
+    character.intelligence = sanitize_stat(character.intelligence + stat_delta(proposed, "intelligence"))
+    character.fitness = sanitize_stat(character.fitness + stat_delta(proposed, "fitness"))
+    character.looks = sanitize_stat(character.looks + stat_delta(proposed, "looks"))
+    character.charisma = sanitize_stat(character.charisma + stat_delta(proposed, "charisma"))
 
     # Update relationships
     if proposed["relationships"]
       proposed["relationships"].each do |name, val|
         current_val = character.relationships[name] || 50
-        character.relationships[name] = sanitize_stat(current_val + val)
+        character.relationships[name] = sanitize_stat(current_val + val.to_i)
       end
     end
 
@@ -117,6 +117,8 @@ class GameEngine
       applied_changes: proposed
     )
 
+    character.age += age_delta
+
     # 6. Apply deterministic game over rules
     if character.health <= 0
       run.update!(status: "dead")
@@ -140,14 +142,8 @@ class GameEngine
         choices: []
       )
     else
-      # Increment age dynamically
-      character.age += age_delta
-
       # Format suggestions as choices for the next turn
-      suggestions = response["suggestions"] || []
-      choices_formatted = suggestions.map.with_index do |s, idx|
-        { "id" => "suggest_#{idx}", "text" => s }
-      end
+      choices_formatted = formatted_suggestions(response["suggestions"])
 
       # Create the new LifeEvent for the next year (with narrative = nil to avoid duplicates in feed)
       LifeEvent.create!(
@@ -167,5 +163,25 @@ class GameEngine
 
   def self.sanitize_stat(value)
     [[value.to_i, 100].min, 0].max
+  end
+
+  def self.sanitize_age_delta(value)
+    return 1 if value.nil?
+
+    value.to_i.clamp(0, 1)
+  end
+
+  def self.stat_delta(changes, key)
+    changes[key].to_i
+  end
+
+  def self.formatted_suggestions(suggestions)
+    Array(suggestions).first(3).filter_map.with_index do |suggestion, idx|
+      text = suggestion.is_a?(Hash) ? suggestion["text"] : suggestion
+      text = text.to_s.strip
+      next if text.blank?
+
+      { "id" => "suggest_#{idx}", "text" => text.first(80) }
+    end
   end
 end
