@@ -1,0 +1,42 @@
+<% if run.status == "active" %>
+  <%= form_with url: play_run_path(run), method: :post, id: "chat_input_form", class: "chat-input-container" do |f| %>
+    <div class="chat-input-row">
+      <%= f.text_field :custom_action, placeholder: "Guidez votre histoire... ou laissez faire le destin", class: "chat-textarea", id: "custom_action_input", autocomplete: "off", onkeydown: "handleKeyDown(event)" %>
+      <button type="submit" class="chat-send-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+    <div class="chat-meta">
+      <span>✓ ENVOYER • ENTRÉE</span>
+      <span id="char_count">0/500</span>
+    </div>
+  <% end %>
+
+  <script>
+    function handleKeyDown(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        event.target.closest('form').requestSubmit();
+      }
+    }
+    
+    // Character count listener
+    document.getElementById('custom_action_input').addEventListener('input', function(e) {
+      const count = e.target.value.length;
+      document.getElementById('char_count').textContent = count + '/500';
+    });
+  </script>
+<% else %>
+  <div class="chat-input-container" style="justify-content: center; align-items: center; padding: 24px; text-align: center; border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.03); gap: 12px; position: absolute; bottom: 24px;">
+    <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.15rem; color: #f87171; margin-bottom: 4px;">
+      <%= run.status == 'dead' ? '💀 VIE TERMINÉE' : 'ℹ️ RETRAITE ATTEINTE' %>
+    </h3>
+    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+      Cette simulation s'est terminée à l'âge de <%= run.character.age %> ans. Votre solde final était de $<%= number_to_human(run.character.cash, precision: 3, format: '%n%u', units: { thousand: 'K', million: 'M' }) %>.
+    </p>
+    <%= button_to "Commencer une nouvelle vie", run_path(run), method: :delete, class: "start-btn", style: "background-color: var(--text-primary); color: var(--bg-color);" %>
+  </div>
+<% end %>

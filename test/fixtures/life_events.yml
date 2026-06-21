@@ -1,0 +1,23 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  run: one
+  age: 1
+  icon_type: MyString
+  title: MyString
+  narrative: MyText
+  choices: 
+  selected_choice_id: MyString
+  player_custom_action: MyText
+  resolution_narrative: MyText
+
+two:
+  run: two
+  age: 1
+  icon_type: MyString
+  title: MyString
+  narrative: MyText
+  choices: 
+  selected_choice_id: MyString
+  player_custom_action: MyText
+  resolution_narrative: MyText

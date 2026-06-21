@@ -1,0 +1,11 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  status: MyString
+  starting_prompt: MyText
+  score_net_worth: 1
+
+two:
+  status: MyString
+  starting_prompt: MyText
+  score_net_worth: 1

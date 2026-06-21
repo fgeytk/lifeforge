@@ -1,0 +1,89 @@
+<div class="game-header">
+  <div class="header-logo">
+    ⚡ LIFEFORGE <span>AI LIFE SIM</span>
+  </div>
+  <% if @run %>
+    <div class="header-status">
+      <div class="status-live">
+        <span class="status-dot"></span> WORK IN PROGRESS
+      </div>
+      <div>YEAR <%= Date.current.year + (@character.age - 18) %></div>
+      <div>SLOT_01 - <%= @character.full_name.upcase %></div>
+    </div>
+  <% end %>
+</div>
+
+<div class="game-container">
+  <% if @run.nil? %>
+    <!-- START SCREEN -->
+    <div class="start-screen">
+      <h1 class="start-title">Créer votre destinée</h1>
+      <p class="start-subtitle">
+        Qui voulez-vous être aujourd'hui ? Écrivez une description libre (ex: "un jeune graphiste ambitieux à Berlin" ou "une héritière rebelle à Tokyo") et laissez l'IA générer votre histoire et vos statistiques de départ.
+      </p>
+
+      <%= form_with url: runs_path, method: :post, local: true, class: "start-form" do |f| %>
+        <div class="start-input-wrapper">
+          <%= f.text_field :starting_prompt, placeholder: "Entrez votre idée de départ...", class: "start-input", required: true, autocomplete: "off" %>
+          <%= f.submit "Générer", class: "start-btn" %>
+        </div>
+      <% end %>
+
+      <div class="start-suggestions">
+        <button class="suggestion-tag" onclick="fillPrompt('Un développeur de jeux vidéo indépendant et introverti à Tokyo')">
+          🕹️ Développeur de jeux à Tokyo
+        </button>
+        <button class="suggestion-tag" onclick="fillPrompt('Une étudiante en art dramatique extravertie à New York')">
+          🎭 Étudiante en théâtre à New York
+        </button>
+        <button class="suggestion-tag" onclick="fillPrompt('Un boxeur professionnel en quête de rédemption à Chicago')">
+          🥊 Boxeur en rédemption à Chicago
+        </button>
+        <button class="suggestion-tag" onclick="fillPrompt('Une chef cuisinière passionnée ouvrant son restaurant à Lyon')">
+          🍳 Chef cuisinière à Lyon
+        </button>
+      </div>
+    </div>
+
+    <script>
+      function fillPrompt(text) {
+        document.querySelector('.start-input').value = text;
+      }
+    </script>
+
+  <% else %>
+    <!-- LEFT SIDEBAR: PROFILE & STATS -->
+    <div class="game-sidebar" id="character_sheet">
+      <%= render partial: "character_sheet", locals: { character: @character } %>
+    </div>
+
+    <!-- MAIN COLUMN: STORY FEED -->
+    <div class="game-main">
+      <div class="life-feed-container" id="life_feed">
+        <% @events.each do |event| %>
+          <%= render partial: "event_card", locals: { event: event, active: (event == @active_event) } %>
+        <% end %>
+      </div>
+
+      <!-- FLOATING CHAT INPUT -->
+      <div id="chat_input_panel">
+        <%= render partial: "chat_input", locals: { run: @run, active_event: @active_event } %>
+      </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR: LOG & TIMELINE -->
+    <div class="game-sidebar right">
+      <div id="life_log">
+        <%= render partial: "life_log", locals: { character: @character, events_count: @events.count } %>
+      </div>
+      <div class="timeline-panel">
+        <h3 class="section-title">Timeline</h3>
+        <div class="timeline-list" id="timeline_list">
+          <%= render partial: "timeline", locals: { events: @events } %>
+        </div>
+      </div>
+
+      <%= button_to "Recommencer la vie", run_path(@run), method: :delete, class: "reset-btn", data: { confirm: "Êtes-vous sûr de vouloir supprimer cette vie ?" } %>
+    </div>
+  <% end %>
+</div>

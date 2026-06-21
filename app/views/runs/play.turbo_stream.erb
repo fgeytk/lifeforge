@@ -1,0 +1,25 @@
+<%= turbo_stream.replace "event_#{@resolved_event.id}", partial: "event_card", locals: { event: @resolved_event, active: false } %>
+
+<%= turbo_stream.append "life_feed", partial: "event_card", locals: { event: @active_event, active: true } %>
+
+<%= turbo_stream.update "character_sheet", partial: "character_sheet", locals: { character: @character } %>
+
+<%= turbo_stream.update "life_log", partial: "life_log", locals: { character: @character, events_count: @events.count } %>
+
+<%= turbo_stream.update "timeline_list", partial: "timeline", locals: { events: @events } %>
+
+<%= turbo_stream.update "chat_input_panel", partial: "chat_input", locals: { run: @run, active_event: @active_event } %>
+
+<%= turbo_stream.append "life_feed" do %>
+  <script>
+    setTimeout(function() {
+      var feed = document.getElementById('life_feed');
+      if (feed) {
+        feed.scrollTo({
+          top: feed.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
+  </script>
+<% end %>

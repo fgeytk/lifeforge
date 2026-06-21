@@ -1,0 +1,20 @@
+<div class="stats-grid">
+  <div class="stat-card">
+    <span class="stat-card-label">Age</span>
+    <span class="stat-card-value"><%= character.age %></span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-card-label">Events</span>
+    <span class="stat-card-value"><%= events_count %></span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-card-label">Cash</span>
+    <span class="stat-card-value highlight">$<%= number_to_human(character.cash, precision: 3, format: '%n%u', units: { thousand: 'K', million: 'M' }) %></span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-card-label">City</span>
+    <span class="stat-card-value" style="font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="<%= character.location %>">
+      <%= character.location.split(',').first %>
+    </span>
+  </div>
+</div>

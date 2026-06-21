@@ -1,0 +1,122 @@
+<div class="profile-card">
+  <div class="profile-header">
+    <div class="profile-avatar">
+      <%= character.first_name[0] %>
+      <span class="status-dot-active"></span>
+    </div>
+    <div class="profile-info">
+      <h3><%= character.full_name %></h3>
+      <p>Age <%= character.age %> • <%= character.location %></p>
+      <span class="profile-job-tag"><%= character.occupation %></span>
+    </div>
+  </div>
+  <div class="net-worth-section">
+    <span class="net-worth-label">NET WORTH</span>
+    <span class="net-worth-value">$<%= number_to_human(character.cash, precision: 3, format: '%n%u', units: { thousand: 'K', million: 'M' }) %></span>
+  </div>
+</div>
+
+<h3 class="section-title">Attributes</h3>
+<div class="attributes-list">
+  <div class="attribute-item health">
+    <div class="attribute-header">
+      <span>HEALTH</span>
+      <span><%= character.health %></span>
+    </div>
+    <div class="attribute-bar-bg">
+      <div class="attribute-bar-fill" style="width: <%= character.health %>%;"></div>
+    </div>
+  </div>
+
+  <div class="attribute-item happiness">
+    <div class="attribute-header">
+      <span>HAPPINESS</span>
+      <span><%= character.happiness %></span>
+    </div>
+    <div class="attribute-bar-bg">
+      <div class="attribute-bar-fill" style="width: <%= character.happiness %>%;"></div>
+    </div>
+  </div>
+
+  <div class="attribute-item intelligence">
+    <div class="attribute-header">
+      <span>INTELLIGENCE</span>
+      <span><%= character.intelligence %></span>
+    </div>
+    <div class="attribute-bar-bg">
+      <div class="attribute-bar-fill" style="width: <%= character.intelligence %>%;"></div>
+    </div>
+  </div>
+
+  <div class="attribute-item fitness">
+    <div class="attribute-header">
+      <span>FITNESS</span>
+      <span><%= character.fitness %></span>
+    </div>
+    <div class="attribute-bar-bg">
+      <div class="attribute-bar-fill" style="width: <%= character.fitness %>%;"></div>
+    </div>
+  </div>
+
+  <div class="attribute-item looks">
+    <div class="attribute-header">
+      <span>LOOKS</span>
+      <span><%= character.looks %></span>
+    </div>
+    <div class="attribute-bar-bg">
+      <div class="attribute-bar-fill" style="width: <%= character.looks %>%;"></div>
+    </div>
+  </div>
+
+  <div class="attribute-item charisma">
+    <div class="attribute-header">
+      <span>CHARISMA</span>
+      <span><%= character.charisma %></span>
+    </div>
+    <div class="attribute-bar-bg">
+      <div class="attribute-bar-fill" style="width: <%= character.charisma %>%;"></div>
+    </div>
+  </div>
+</div>
+
+<% if character.relationships.present? %>
+  <h3 class="section-title">Relationships</h3>
+  <div class="relationships-list">
+    <% character.relationships.each do |key, value| %>
+      <% 
+        # Extract name and role, e.g. "Sarah Cross (Mother)"
+        name = key
+        role = ""
+        if key =~ /([^(]+)\(([^)]+)\)/
+          name = $1.strip
+          role = $2.strip
+        end
+      %>
+      <div class="relationship-item">
+        <div class="relation-avatar">
+          <%= name[0] %>
+        </div>
+        <div class="relation-info">
+          <span class="relation-name"><%= name %></span>
+          <span class="relation-role"><%= role %></span>
+        </div>
+        <div class="relation-bar-wrapper">
+          <div class="relation-bar-bg">
+            <div class="relation-bar-fill" style="width: <%= value %>%; background-color: <%= value > 70 ? 'var(--color-health)' : (value > 40 ? 'var(--color-happiness)' : 'var(--danger-color)') %>;"></div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<% if character.assets.present? %>
+  <h3 class="section-title" style="margin-top: 32px;">Assets</h3>
+  <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+    <% character.assets.each do |asset| %>
+      <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px;">
+        💼 <%= asset %>
+      </div>
+    <% end %>
+  </div>
+<% end %>
