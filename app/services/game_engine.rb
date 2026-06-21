@@ -44,7 +44,7 @@ class GameEngine
     return if run.status != "active"
 
     # 1. Find the active event (the current one needing response)
-    last_event = run.life_events.order(age: :asc).last
+    last_event = run.life_events.order(id: :asc).last
     return unless last_event
 
     # 2. Extract action text
@@ -58,15 +58,16 @@ class GameEngine
       action_text = "Laisser le destin décider."
     end
 
-    # 3. Get history of recent events for LLM context
-    history = run.life_events.order(age: :asc).limit(5).to_a
+    # 3. Get history of recent events for LLM context (sorted chronologically by ID)
+    history = run.life_events.order(id: :asc).limit(5).to_a
 
     # 4. Ask Gemini for resolution + next event
     response = GeminiClient.resolve_turn(character, last_event, action_text, history)
 
     # 5. Process resolution and update character stats
-    resolution = response["resolution"]
-    proposed = resolution["proposed_changes"] || {}
+    reply = response["reply"] || "Vous continuez votre route."
+    proposed = response["proposed_changes"] || {}
+    age_delta = (response["age_delta"] || 1).to_i
 
     # Update stats safely
     character.cash += (proposed["cash_delta"] || 0)
@@ -86,33 +87,34 @@ class GameEngine
     end
 
     # Add new relationships
-    if resolution["new_relationships"]
-      resolution["new_relationships"].each do |rel|
+    if response["new_relationships"]
+      response["new_relationships"].each do |rel|
         name_key = "#{rel['name']} (#{rel['role']})"
         character.relationships[name_key] = sanitize_stat(rel["value"] || 50)
       end
     end
 
     # Remove relationships
-    if resolution["removed_relationships"]
-      resolution["removed_relationships"].each do |name|
+    if response["removed_relationships"]
+      response["removed_relationships"].each do |name|
         character.relationships.delete(name)
       end
     end
 
     # Manage assets
-    if resolution["new_assets"]
-      character.assets = (character.assets + resolution["new_assets"]).uniq
+    if response["new_assets"]
+      character.assets = (character.assets + response["new_assets"]).uniq
     end
-    if resolution["removed_assets"]
-      character.assets = character.assets - resolution["removed_assets"]
+    if response["removed_assets"]
+      character.assets = character.assets - response["removed_assets"]
     end
 
-    # Save resolution details to the event
+    # Save resolution details and stat deltas to the event
     last_event.update!(
       selected_choice_id: choice_id,
-      player_custom_action: custom_action,
-      resolution_narrative: resolution["narrative"]
+      player_custom_action: action_text,
+      resolution_narrative: reply,
+      applied_changes: proposed
     )
 
     # 6. Apply deterministic game over rules
@@ -138,25 +140,23 @@ class GameEngine
         choices: []
       )
     else
-      # Increment age and generate next event
-      character.age += 1
-      next_event = response["next_event"] || {}
+      # Increment age dynamically
+      character.age += age_delta
 
-      # Update occupation/location if changed in next_event or implied (optional simple logic)
-      if next_event["narrative"] =~ /déménagez à ([^,.\n]+)/i
-        character.location = $1.strip
+      # Format suggestions as choices for the next turn
+      suggestions = response["suggestions"] || []
+      choices_formatted = suggestions.map.with_index do |s, idx|
+        { "id" => "suggest_#{idx}", "text" => s }
       end
 
-      # Create the new LifeEvent for the next year
+      # Create the new LifeEvent for the next year (with narrative = nil to avoid duplicates in feed)
       LifeEvent.create!(
         run: run,
         age: character.age,
-        icon_type: next_event["icon_type"] || "lightning",
-        title: next_event["title"] || "Une nouvelle année",
-        narrative: next_event["narrative"] || "Les mois s'écoulent tranquillement.",
-        choices: next_event["choices"] || [
-          { "id" => "continue", "text" => "Continuer à vivre", "risk" => "none", "preview" => "Avancer" }
-        ]
+        icon_type: "lightning",
+        title: "Dialogue",
+        narrative: nil,
+        choices: choices_formatted
       )
     end
 

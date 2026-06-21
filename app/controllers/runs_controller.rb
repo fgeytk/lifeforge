@@ -6,7 +6,7 @@ class RunsController < ApplicationController
       @run = Run.find_by(id: session[:run_id])
       if @run
         @character = @run.character
-        @events = @run.life_events.order(age: :asc)
+        @events = @run.life_events.order(id: :asc)
         @active_event = @events.last
       else
         session[:run_id] = nil
@@ -42,7 +42,7 @@ class RunsController < ApplicationController
 
       # 2. Reload data for rendering
       @character = @run.character.reload
-      @events = @run.life_events.order(age: :asc)
+      @events = @run.life_events.order(id: :asc)
       @active_event = @events.last
       @resolved_event = @events[-2] # The event that was just resolved
 

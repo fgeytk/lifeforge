@@ -2,7 +2,7 @@ require "net/http"
 require "json"
 
 class GeminiClient
-  API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+  API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
   def self.api_key
     ENV["GEMINI_API_KEY"]
@@ -38,15 +38,26 @@ class GeminiClient
       Respond in French for names, locations, occupations, stories, and relationships if the starting prompt is in French.
     PROMPT
 
-    call_gemini(prompt) || mock_character(starting_prompt)
+    call_gemini(prompt, "gemini-3.5-flash") ||
+      call_gemini(prompt, "gemini-3.1-flash-lite") ||
+      mock_character(starting_prompt)
   end
 
   def self.resolve_turn(character, last_event, action_taken, history = [])
-    history_context = history.map { |e| "Age #{e.age}: #{e.narrative} -> Selected Choice: #{e.selected_choice_id || e.player_custom_action}" }.join("\n")
+    # Build history context from past events
+    history_context = history.map do |e|
+      parts = []
+      parts << "Age #{e.age}"
+      parts << "AI Narrative: #{e.narrative}" if e.narrative.present?
+      parts << "Player Action: #{e.player_custom_action || e.selected_choice_id}" if (e.player_custom_action || e.selected_choice_id).present?
+      parts << "AI Resolution: #{e.resolution_narrative}" if e.resolution_narrative.present?
+      parts.join(" | ")
+    end.join("\n")
 
     prompt = <<~PROMPT
-      You are the engine of Lifeforge, a realistic life simulator.
+      You are the Game Master of Lifeforge, a realistic life simulator.
       Resolve the character's turn based on their action and current state.
+      The game is a continuous chat-based RPG dialogue. You are responding to the user's action and setting up the next situation.
 
       CHARACTER STATE:
       - Name: #{character.full_name}
@@ -61,58 +72,56 @@ class GeminiClient
       HISTORY OF RECENT EVENTS:
       #{history_context}
 
-      LAST EVENT PRESENTED:
-      "#{last_event.narrative}"
+      LAST SITUATION PRESENTED:
+      "#{last_event.narrative || last_event.resolution_narrative}"
 
       ACTION TAKEN BY PLAYER:
       "#{action_taken}"
 
       Return a JSON object matching this schema:
       {
-        "resolution": {
-          "narrative": "string (the immediate consequence of the action taken, 2-3 sentences)",
-          "proposed_changes": {
-            "cash_delta": integer,
-            "health": integer (change between -50 and +30),
-            "happiness": integer (change between -50 and +30),
-            "intelligence": integer (change between -10 and +10),
-            "fitness": integer (change between -10 and +10),
-            "looks": integer (change between -10 and +10),
-            "charisma": integer (change between -10 and +10),
-            "relationships": {
-              "Relationship Name (Role)": integer (change, e.g. -15 or +10)
-            }
-          },
-          "new_relationships": [
-            { "name": "string", "role": "string", "value": integer }
-          ],
-          "removed_relationships": ["string"],
-          "new_assets": ["string"],
-          "removed_assets": ["string"]
+        "reply": "string (the immediate consequence of the action taken and the description of the next situation/question for the player, 2-3 sentences)",
+        "proposed_changes": {
+          "cash_delta": integer,
+          "health": integer (change between -50 and +30),
+          "happiness": integer (change between -50 and +30),
+          "intelligence": integer (change between -10 and +10),
+          "fitness": integer (change between -10 and +10),
+          "looks": integer (change between -10 and +10),
+          "charisma": integer (change between -10 and +10),
+          "relationships": {
+            "Relationship Name (Role)": integer (change, e.g. -15 or +10)
+          }
         },
-        "next_event": {
-          "title": "string",
-          "narrative": "string (the scenario that happens 1 year later at age #{character.age + 1}. Should feel like a natural consequence or random life event)",
-          "icon_type": "string (lightning, heart, sparkles, briefcase, skull, info)",
-          "choices": [
-            { "id": "string", "text": "string (the button option)", "risk": "string (none, low, medium, high)", "preview": "string" }
-          ]
-        }
+        "age_delta": integer (either 0 or 1. Use 0 for short-term/immediate actions, use 1 if the action takes time or if a year should pass),
+        "suggestions": [
+          "string (short quick-reply suggestion 1, max 45 chars)",
+          "string (short quick-reply suggestion 2, max 45 chars)",
+          "string (short quick-reply suggestion 3, max 45 chars)"
+        ],
+        "new_relationships": [
+          { "name": "string", "role": "string", "value": integer }
+        ],
+        "removed_relationships": ["string"],
+        "new_assets": ["string"],
+        "removed_assets": ["string"]
       }
 
       Do NOT return any markdown wrapping (no ```json). Output raw JSON.
-      Respond in French. Ensure the narrative is engaging and realistic for our modern world.
+      Respond in French. Ensure the narration is engaging, modern and feels like a tabletop RPG master.
     PROMPT
 
-    call_gemini(prompt) || mock_resolution(character, last_event, action_taken)
+    call_gemini(prompt, "gemini-3.5-flash") ||
+      call_gemini(prompt, "gemini-3.1-flash-lite") ||
+      mock_resolution(character, last_event, action_taken)
   end
 
   private
 
-  def self.call_gemini(prompt)
+  def self.call_gemini(prompt, model)
     return nil if api_key.blank?
 
-    uri = URI("#{API_URL}?key=#{api_key}")
+    uri = URI("#{API_BASE_URL}/#{model}:generateContent?key=#{api_key}")
     req = Net::HTTP::Post.new(uri, "Content-Type" => "application/json")
     req.body = {
       contents: [{ parts: [{ text: prompt }] }],
@@ -130,11 +139,11 @@ class GeminiClient
       text = json.dig("candidates", 0, "content", "parts", 0, "text")
       JSON.parse(text)
     else
-      Rails.logger.error("Gemini API Error: #{res.body}")
+      Rails.logger.error("Gemini API Error for #{model}: #{res.body}")
       nil
     end
   rescue => e
-    Rails.logger.error("Gemini Client Error: #{e.message}")
+    Rails.logger.error("Gemini Client Error for #{model}: #{e.message}")
     nil
   end
 
@@ -161,35 +170,49 @@ class GeminiClient
   end
 
   def self.mock_resolution(character, last_event, action_taken)
-    {
-      "resolution" => {
-        "narrative" => "Vous avez choisi : '#{action_taken}'. Les choses se déroulent de manière inattendue, mais vous parvenez à vous adapter.",
-        "proposed_changes" => {
-          "cash_delta" => 200,
-          "health" => 5,
-          "happiness" => 10,
-          "intelligence" => 2,
-          "fitness" => -1,
-          "looks" => 0,
-          "charisma" => 1,
-          "relationships" => {
-            "Marie Martin (Mère)" => 5
-          }
-        },
-        "new_relationships" => [],
-        "removed_relationships" => [],
-        "new_assets" => [],
-        "removed_assets" => []
+    scenarios = [
+      {
+        reply: "Votre action '#{action_taken}' a attiré l'attention d'un recruteur local. Il vous propose un entretien rapide.",
+        cash_delta: 0, health: 0, happiness: 5, intelligence: 1, fitness: 0, looks: 0, charisma: 2,
+        suggestions: ["Accepter l'entretien", "Refuser pour rester concentré", "Négocier les conditions d'abord"]
       },
-      "next_event" => {
-        "title" => "Une nouvelle opportunité",
-        "narrative" => "Un an s'est écoulé. À l'âge de #{character.age + 1} ans, vous faites face à un nouveau choix décisif pour votre avenir.",
-        "icon_type" => "lightning",
-        "choices" => [
-          { "id" => "explore", "text" => "Explorer cette opportunité activement", "risk" => "medium", "preview" => "Risqué mais rentable." },
-          { "id" => "ignore", "text" => "Passer votre chemin pour l'instant", "risk" => "none", "preview" => "Choix de la sécurité." }
-        ]
+      {
+        reply: "Suite à votre initiative ('#{action_taken}'), vous passez une excellente soirée avec vos proches. Cela recharge vos batteries.",
+        cash_delta: -50, health: 5, happiness: 15, intelligence: 0, fitness: 0, looks: 0, charisma: 1,
+        suggestions: ["Proposer de recommencer le week-end", "Rentrer tôt pour vous reposer", "Leur raconter vos projets"]
+      },
+      {
+        reply: "En tentant de faire cela ('#{action_taken}'), vous trébuchez et vous foulez légèrement la cheville. Rien de grave, mais c'est douloureux.",
+        cash_delta: -20, health: -10, happiness: -5, intelligence: 0, fitness: -2, looks: 0, charisma: 0,
+        suggestions: ["Aller à la pharmacie", "Ignorer la douleur et continuer", "Prendre un jour de repos"]
+      },
+      {
+        reply: "Votre démarche ('#{action_taken}') s'avère particulièrement lucrative. Vous trouvez un moyen d'optimiser vos dépenses.",
+        cash_delta: 250, health: 0, happiness: 10, intelligence: 2, fitness: 0, looks: 0, charisma: 0,
+        suggestions: ["Placer cet argent de côté", "S'offrir un petit cadeau", "Investir dans du matériel"]
       }
+    ]
+
+    selected = scenarios.sample
+
+    {
+      "reply" => selected[:reply],
+      "proposed_changes" => {
+        "cash_delta" => selected[:cash_delta],
+        "health" => selected[:health],
+        "happiness" => selected[:happiness],
+        "intelligence" => selected[:intelligence],
+        "fitness" => selected[:fitness],
+        "looks" => selected[:looks],
+        "charisma" => selected[:charisma],
+        "relationships" => {}
+      },
+      "age_delta" => [0, 1].sample,
+      "suggestions" => selected[:suggestions],
+      "new_relationships" => [],
+      "removed_relationships" => [],
+      "new_assets" => [],
+      "removed_assets" => []
     }
   end
 end

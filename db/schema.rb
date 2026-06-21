@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_21_183832) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_21_202441) do
   create_table "characters", force: :cascade do |t|
     t.integer "age", default: 18
     t.json "assets", default: []
@@ -34,6 +34,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_21_183832) do
 
   create_table "life_events", force: :cascade do |t|
     t.integer "age"
+    t.json "applied_changes"
     t.json "choices", default: []
     t.datetime "created_at", null: false
     t.string "icon_type", default: "lightning"

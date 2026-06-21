@@ -1,19 +1,36 @@
 <% if run.status == "active" %>
-  <%= form_with url: play_run_path(run), method: :post, id: "chat_input_form", class: "chat-input-container" do |f| %>
-    <div class="chat-input-row">
-      <%= f.text_field :custom_action, placeholder: "Guidez votre histoire... ou laissez faire le destin", class: "chat-textarea", id: "custom_action_input", autocomplete: "off", onkeydown: "handleKeyDown(event)" %>
-      <button type="submit" class="chat-send-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"></line>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-        </svg>
-      </button>
-    </div>
-    <div class="chat-meta">
-      <span>✓ ENVOYER • ENTRÉE</span>
-      <span id="char_count">0/500</span>
-    </div>
-  <% end %>
+  <div class="chat-input-wrapper-panel">
+    <%# Suggestion chips above the text field %>
+    <% if active_event && active_event.choices.present? %>
+      <div class="chat-suggestions-container">
+        <% active_event.choices.each do |choice| %>
+          <%= button_to play_run_path(run), 
+                        params: { custom_action: choice["text"] }, 
+                        method: :post, 
+                        class: "suggestion-chip",
+                        form: { class: "suggestion-chip-form" } do %>
+            <%= choice["text"] %>
+          <% end %>
+        <% end %>
+      </div>
+    <% end %>
+
+    <%= form_with url: play_run_path(run), method: :post, id: "chat_input_form", class: "chat-input-container" do |f| %>
+      <div class="chat-input-row">
+        <%= f.text_field :custom_action, placeholder: "Guidez votre histoire... ou laissez faire le destin", class: "chat-textarea", id: "custom_action_input", autocomplete: "off", onkeydown: "handleKeyDown(event)" %>
+        <button type="submit" class="chat-send-btn" aria-label="Envoyer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+      <div class="chat-meta">
+        <span>✓ ENVOYER • ENTRÉE</span>
+        <span id="char_count">0/500</span>
+      </div>
+    <% end %>
+  </div>
 
   <script>
     function handleKeyDown(event) {
@@ -30,11 +47,11 @@
     });
   </script>
 <% else %>
-  <div class="chat-input-container" style="justify-content: center; align-items: center; padding: 24px; text-align: center; border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.03); gap: 12px; position: absolute; bottom: 24px;">
+  <div class="chat-input-container-ended" style="justify-content: center; align-items: center; padding: 24px; text-align: center; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.03); border-radius: 16px; gap: 12px; margin-top: 16px;">
     <h3 style="font-family: 'Space Grotesk', sans-serif; font-size: 1.15rem; color: #f87171; margin-bottom: 4px;">
       <%= run.status == 'dead' ? '💀 VIE TERMINÉE' : 'ℹ️ RETRAITE ATTEINTE' %>
     </h3>
-    <p style="font-size: 0.85rem; color: var(--text-secondary);">
+    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
       Cette simulation s'est terminée à l'âge de <%= run.character.age %> ans. Votre solde final était de $<%= number_to_human(run.character.cash, precision: 3, format: '%n%u', units: { thousand: 'K', million: 'M' }) %>.
     </p>
     <%= button_to "Commencer une nouvelle vie", run_path(run), method: :delete, class: "start-btn", style: "background-color: var(--text-primary); color: var(--bg-color);" %>

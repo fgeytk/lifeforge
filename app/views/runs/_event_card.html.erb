@@ -1,60 +1,86 @@
-<% 
-  icon = case event.icon_type
-         when "heart" then "❤️"
-         when "sparkles" then "✨"
-         when "briefcase" then "💼"
-         when "skull" then "💀"
-         when "info" then "ℹ️"
-         else "⚡"
-         end
-%>
-
-<div class="event-card <%= active ? 'active' : 'past' %>" id="event_<%= event.id %>">
-  <div class="event-left">
-    <span class="event-age">AGE <%= event.age %></span>
-    <div class="event-icon-wrapper">
-      <%= icon %>
-    </div>
-  </div>
-
-  <div class="event-right">
-    <h3 class="event-title"><%= event.title %></h3>
-    <p class="event-narrative"><%= event.narrative %></p>
-
-    <% if active && event.run.status == "active" %>
-      <div class="event-choices">
-        <% event.choices.each_with_index do |choice, idx| %>
-          <%= button_to play_run_path(event.run), 
-                        params: { choice_id: choice["id"] }, 
-                        method: :post, 
-                        class: "choice-btn",
-                        form: { class: "choice-form" } do %>
-            <span class="choice-indicator">></span>
-            <span><%= choice["text"] %></span>
-            <% if choice["preview"].present? %>
-              <span class="choice-preview"><%= choice["preview"] %></span>
-            <% end %>
-          <% end %>
-        <% end %>
+<div class="event-card-group" id="event_<%= event.id %>">
+  <%# 1. Starting or milestone AI prompt %>
+  <% if event.narrative.present? %>
+    <div class="chat-row chat-row-ai">
+      <div class="chat-avatar ai-avatar">🤖</div>
+      <div class="chat-bubble-container">
+        <div class="chat-bubble ai-bubble">
+          <%= event.narrative %>
+        </div>
+        <div class="chat-meta-time">AGE <%= event.age %></div>
       </div>
-    <% else %>
-      <!-- Past event resolution -->
-      <% if event.selected_choice_id.present? || event.player_custom_action.present? %>
-        <div class="resolution-box">
-          <div class="resolution-action">
-            Action : 
-            <% if event.player_custom_action.present? %>
-              "<%= event.player_custom_action %>"
-            <% else %>
-              <% selected_choice = event.choices.find { |c| c["id"] == event.selected_choice_id } %>
-              "<%= selected_choice ? selected_choice["text"] : event.selected_choice_id %>"
+    </div>
+  <% end %>
+
+  <%# 2. Player Action bubble %>
+  <% if event.player_custom_action.present? %>
+    <div class="chat-row chat-row-player">
+      <div class="chat-bubble-container">
+        <div class="chat-bubble player-bubble">
+          <%= event.player_custom_action %>
+        </div>
+      </div>
+      <div class="chat-avatar player-avatar">
+        <%= event.run.character.first_name[0].upcase %>
+      </div>
+    </div>
+  <% end %>
+
+  <%# 3. AI Resolution Narrative bubble %>
+  <% if event.resolution_narrative.present? %>
+    <div class="chat-row chat-row-ai">
+      <div class="chat-avatar ai-avatar">🤖</div>
+      <div class="chat-bubble-container">
+        <div class="chat-bubble ai-bubble">
+          <%= event.resolution_narrative %>
+        </div>
+
+        <%# Display stat changes (applied_changes) if present %>
+        <% if event.applied_changes.present? %>
+          <div class="stat-deltas-container">
+            <% 
+              deltas = event.applied_changes
+              stat_map = {
+                "cash_delta" => { label: "$", prefix: true },
+                "health" => { label: "Santé", emoji: "💚" },
+                "happiness" => { label: "Bonheur", emoji: "😊" },
+                "intelligence" => { label: "Intell.", emoji: "🧠" },
+                "fitness" => { label: "Forme", emoji: "💪" },
+                "looks" => { label: "Style", emoji: "✨" },
+                "charisma" => { label: "Charisme", emoji: "🗣️" }
+              }
+            %>
+            <% stat_map.each do |key, info| %>
+              <% val = deltas[key].to_i %>
+              <% next if val == 0 %>
+              <% 
+                is_positive = val > 0
+                class_name = is_positive ? 'stat-delta positive' : 'stat-delta negative'
+                formatted_val = is_positive ? "+#{val}" : val.to_s
+                display_text = info[:prefix] ? "#{formatted_val}#{info[:label]}" : "#{info[:emoji]} #{formatted_val} #{info[:label]}"
+              %>
+              <span class="<%= class_name %>"><%= display_text %></span>
+            <% end %>
+
+            <%# Relationship changes %>
+            <% if deltas["relationships"].present? %>
+              <% deltas["relationships"].each do |name, val| %>
+                <% val = val.to_i %>
+                <% next if val == 0 %>
+                <% 
+                  is_positive = val > 0
+                  class_name = is_positive ? 'stat-delta positive' : 'stat-delta negative'
+                  formatted_val = is_positive ? "+#{val}" : val.to_s
+                  short_name = name.gsub(/\s*\(.*\)/, '')
+                %>
+                <span class="<%= class_name %>">👥 <%= formatted_val %> <%= short_name %></span>
+              <% end %>
             <% end %>
           </div>
-          <% if event.resolution_narrative.present? %>
-            <div style="margin-top: 8px; line-height: 1.5;"><%= event.resolution_narrative %></div>
-          <% end %>
-        </div>
-      <% end %>
-    <% end %>
-  </div>
+        <% end %>
+
+        <div class="chat-meta-time">AGE <%= event.age %></div>
+      </div>
+    </div>
+  <% end %>
 </div>
